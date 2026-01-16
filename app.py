@@ -2,10 +2,10 @@ import streamlit as st
 import os
 from groq import Groq
 
-# 1. Konfigurasi Halaman
-st.set_page_config(page_title="AI Super Prompt Generator", page_icon="⚡", layout="centered")
+# 1. Page Configuration
+st.set_page_config(page_title="AI Ultimate Prompt Generator", page_icon="⚡", layout="centered")
 
-# 2. Ambil API Key
+# 2. Get API Key
 api_key = st.secrets.get("GROQ_API_KEY")
 if not api_key:
     st.error("🚨 GROQ_API_KEY not found. Please add it in Secrets.")
@@ -13,36 +13,35 @@ if not api_key:
 
 client = Groq(api_key=api_key)
 
-# Model Llama 4 Scout (Sesuai Dashboard Groq Anda)
+# Model Llama 4 Scout
 MODEL_ID = "meta-llama/llama-4-scout-17b-16e-instruct" 
 
 def get_llama_enhancement(base, outfit, background, mode):
     """
-    Menggabungkan 3 elemen (Base, Outfit, Background) menjadi satu prompt stabil.
+    Generates a structured Stable Diffusion prompt using Llama 4.
     """
     
-    # Instruksi System agar output stabil & Bahasa Inggris
+    # System Instruction: Strictly English & Structured
     system_instruction = """
-    You are an expert Stable Diffusion Prompt Engineer.
+    You are an expert AI Prompt Engineer for Midjourney and Stable Diffusion.
     Your goal is to construct a HIGHLY DETAILED prompt based on user inputs.
     
-    CRITICAL RULES FOR STABILITY:
+    CRITICAL RULES:
     1. OUTPUT MUST BE IN ENGLISH ONLY.
     2. Structure the prompt in this order: [Subject Description], [Outfit Details], [Background/Environment], [Lighting/Camera/Style].
-    3. Do NOT merge the outfit into the body description. Keep them distinct to ensure the face remains consistent.
-    4. Use keywords like "8k, masterpiece, highly detailed, photorealistic".
+    3. Do NOT merge the outfit into the body description. Keep them distinct.
+    4. Use high-quality keywords: "8k, masterpiece, highly detailed, photorealistic, trending on artstation".
     5. No conversational filler. Just the raw prompt.
     """
 
-    # User Message yang terstruktur
     user_content = f"""
     Create a {mode} prompt.
     
-    1. SUBJECT (Keep this exact): {base}
-    2. OUTFIT (Change this): {outfit}
-    3. BACKGROUND (Change this): {background}
+    1. SUBJECT (Fixed): {base}
+    2. OUTFIT (Variable): {outfit}
+    3. BACKGROUND (Variable): {background}
     
-    Combine them into a fluid visual description.
+    Combine them into a single, fluid, professional visual description.
     """
 
     try:
@@ -52,7 +51,7 @@ def get_llama_enhancement(base, outfit, background, mode):
                 {"role": "system", "content": system_instruction},
                 {"role": "user", "content": user_content}
             ],
-            temperature=0.6, # Agak rendah biar lebih stabil (nurut)
+            temperature=0.6,
             max_tokens=400,
             top_p=1,
             stream=False,
@@ -62,23 +61,22 @@ def get_llama_enhancement(base, outfit, background, mode):
     except Exception as e:
         return f"Error: {str(e)}"
 
-# --- TAMPILAN WEBSITE (UI) ---
+# --- WEBSITE UI (Full English) ---
 
-st.title("⚡ Llama 4 Scout Prompt Generator")
-st.markdown(f"*Powered by Groq Model: `{MODEL_ID}`*")
+st.title("⚡ Llama 4 Prompt Generator")
+st.markdown(f"*Powered by latest Groq Model: `{MODEL_ID}`*")
 
-# Pilihan Mode
-mode = st.radio("Select Style Mode:", ["Consistent Avatar (Realism)", "Anime Style", "Product Photography"])
+# Mode Selection
+mode = st.radio("Select Style Mode:", ["Consistent Avatar (Realism)", "Anime Style", "Product Photography", "3D Disney Pixar Style"])
 
 st.divider()
 
-# Input User dengan Kolom Terpisah (Biar Rapi)
+# User Inputs
 with st.form("prompt_form"):
     st.subheader("1. Character / Subject Base")
-    st.caption("Deskripsikan fisik karakter yang TIDAK BOLEH berubah (Wajah, Rambut, Ras).")
-    base_input = st.text_input("Example: A cute cyberpunk girl, pink bob hair, blue eyes", placeholder="Describe the face & body...")
+    st.caption("Describe the physical traits that MUST NOT change (Face, Hair, Body Type).")
+    base_input = st.text_input("Example: A cyberpunk girl, platinum bob hair, blue eyes", placeholder="Describe the face & body...")
 
-    # Membagi 2 kolom untuk Outfit & Background
     col1, col2 = st.columns(2)
     
     with col1:
@@ -87,19 +85,18 @@ with st.form("prompt_form"):
         
     with col2:
         st.subheader("3. Background / Location")
-        bg_input = st.text_input("Example: Rainy neon tokyo street", placeholder="Where are they?")
+        bg_input = st.text_input("Example: Rainy neon Tokyo street", placeholder="Where are they?")
 
-    submitted = st.form_submit_button("✨ Generate Stable Prompt")
+    submitted = st.form_submit_button("✨ Generate Magic Prompt")
 
-# Hasil Output
+# Output Section
 if submitted:
     if not base_input:
-        st.warning("Please describe the Character first.")
+        st.warning("⚠️ Please describe the Character/Subject first.")
     else:
-        with st.spinner("Llama 4 Scout is crafting your prompt..."):
-            # Panggil fungsi AI
+        with st.spinner("AI is crafting your masterpiece..."):
             result = get_llama_enhancement(base_input, outfit_input, bg_input, mode)
             
             st.success("✅ Prompt Generated Successfully!")
             st.text_area("Copy this prompt:", value=result, height=200)
-            st.caption("Tip: Paste this into Midjourney, Flux, or Stable Diffusion.")
+            st.caption("Pro Tip: Paste this directly into Midjourney, Flux, or Stable Diffusion.")
