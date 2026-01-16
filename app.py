@@ -1,109 +1,84 @@
 import streamlit as st
+import os
 from groq import Groq
 
-# --- KONFIGURASI ---
-st.set_page_config(page_title="AI Super Prompt", layout="wide")
+# 1. Konfigurasi Halaman (Page Config)
+st.set_page_config(page_title="AI Super Prompt Generator", page_icon="⚡")
 
-# --- CSS ---
-st.markdown("""
-<style>
-    .stButton>button { background-color: #FF4B4B; color: white; width: 100%; }
-    .stTextArea textarea { font-size: 16px; }
-</style>
-""", unsafe_allow_html=True)
+# 2. Ambil API Key dari Secrets
+api_key = st.secrets.get("GROQ_API_KEY")
 
-# --- INISIALISASI GROQ ---
-# Mengambil API Key dari secrets.toml secara aman
-try:
-    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-except:
-    st.error("⚠️ API Key belum dipasang di .streamlit/secrets.toml")
+if not api_key:
+    st.error("🚨 GROQ_API_KEY not found in Secrets. Please add it in 'Manage app' > 'Secrets'.")
     st.stop()
 
-st.title("🚀 Smart Prompt Generator (Powered by Llama 3)")
-st.markdown("Masukkan ide kasar (bahkan bahasa Indonesia), AI akan menyusunnya ke struktur **Valentina** atau **Poster**.")
-st.divider()
+# 3. Inisialisasi Client Groq
+client = Groq(api_key=api_key)
 
-# --- SIDEBAR ---
-with st.sidebar:
-    mode = st.radio("Mode", ["Avatar Konsisten (Valentina)", "Poster Iklan"])
-    st.info("💡 Menggunakan model: Llama 3 (via Groq)")
+# --- MODEL BARU SESUAI DASHBOARD GROQ ANDA ---
+# Sesuai screenshot: meta-llama/llama-4-scout-17b-16e-instruct
+MODEL_ID = "meta-llama/llama-4-scout-17b-16e-instruct" 
 
-# --- FUNGSI OTAK AI (LLM) ---
-def get_llama_enhancement(user_input, prompt_type):
+def get_llama_enhancement(user_idea, style):
     """
-    Fungsi ini menyuruh Llama menerjemahkan & mempercantik input user
-    menjadi deskripsi visual bahasa Inggris yang padat.
+    Function to generate prompts using Llama 4 Scout.
+    Forces output in English.
     """
-    if prompt_type == "avatar":
-        system_msg = "You are an expert AI Art prompter. Convert user's simple description into a detailed visual description of an ACTION and OUTFIT for a photorealistic portrait. Keep it under 20 words. Direct visual keywords only. No filler."
-    else:
-        system_msg = "You are an expert AI Art prompter. Convert user's simple description into a detailed visual description of a BACKGROUND and MOOD for a fashion poster. Keep it under 20 words. Direct visual keywords only."
-
-    completion = client.chat.completions.create(
-        model="llama3-8b-8192", # Ganti ke llama3-70b-8192 kalau mau lebih pintar
-        messages=[
-            {"role": "system", "content": system_msg},
-            {"role": "user", "content": f"Description: {user_input}"}
-        ],
-        temperature=0.5,
-        max_tokens=100
-    )
-    return completion.choices[0].message.content
-
-# --- INTERFACE UTAMA ---
-
-if mode == "Avatar Konsisten (Valentina)":
-    col1, col2 = st.columns(2)
-    with col1:
-        st.subheader("Input Ide")
-        # User bisa input bahasa Indonesia ngasal
-        raw_idea = st.text_area("Karakter lagi ngapain?", value="Lagi minum kopi di senopati, bajunya kemeja flanel kotak-kotak")
-        region = st.selectbox("Base Model Face", ["Latina (Valentina)", "Asian (Yuki)", "European (Elena)"])
-        
-    if st.button("✨ Generate Magic Prompt"):
-        with st.spinner("Llama sedang meracik prompt..."):
-            # 1. Minta Llama menerjemahkan ide user jadi 'Prompt Ingredients'
-            enhanced_desc = get_llama_enhancement(raw_idea, "avatar")
-            
-            # 2. Tentukan Base Character (Hardcoded Structure Anda)
-            if "Latina" in region:
-                base_char = "stunning 24-year-old Latina female named Valentina, radiant olive skin, large expressive dark brown eyes"
-            elif "Asian" in region:
-                base_char = "stunning 24-year-old Japanese female named Yuki, porcelain skin, almond-shaped eyes"
-            else:
-                base_char = "stunning 24-year-old Scandinavian female named Elena, pale skin, blue eyes"
-
-            # 3. GABUNGKAN KE STRUKTUR RAHASIA ANDA
-            final_prompt = f"""Portrait of a {base_char}. Shot on 85mm portrait lens. 
-She is {enhanced_desc}. 
-High-end fashion photography, 8k, extreme facial detail, golden hour lighting. 
-(masterpiece, best quality:1.2)."""
-            
-            st.success("Selesai!")
-            st.markdown("### Prompt Siap Copy:")
-            st.code(final_prompt, language="text")
-            
-            with st.expander("Lihat apa yang dilakukan Llama"):
-                st.write(f"Input Asli: {raw_idea}")
-                st.write(f"Terjemahan Llama: {enhanced_desc}")
-
-elif mode == "Poster Iklan":
-    col1, col2 = st.columns(2)
-    with col1:
-        title_text = st.text_input("Judul Poster", "BIG SALE")
-        poster_idea = st.text_area("Deskripsi Suasana Poster", "Suasana pantai pas sunset, model cewek lari kegirangan")
     
-    if st.button("🎨 Generate Poster Prompt"):
-        with st.spinner("Membuat konsep poster..."):
-            # 1. Llama mempercantik deskripsi background
-            enhanced_bg = get_llama_enhancement(poster_idea, "poster")
-            
-            # 2. Masukkan ke Struktur Poster Anda
-            final_prompt = f"""Full frame cinematic fashion poster art. A Medium Full Shot. 
-Scene details: {enhanced_bg}. 
-Massive negative space at the top. Huge, elegant, wide-spaced serif typography reading "{title_text}" floating in the upper space. 
-Cinematic lighting, high texture details, photorealistic 8k. NO magazine mockup."""
-            
-            st.success("Selesai!")
-            st.code(final_prompt, language="text")
+    # System Prompt khusus bahasa Inggris
+    system_instruction = """
+    You are an expert AI Prompt Engineer.
+    Your task is to convert simple ideas into highly detailed, professional image generation prompts.
+    
+    RULES:
+    1. OUTPUT MUST BE IN ENGLISH ONLY.
+    2. Do not include introductory text like "Here is the prompt". Just the prompt.
+    3. Include details about lighting, camera angle, texture, and 8k resolution.
+    4. For 'Avatar' style: Focus on consistency, facial features, and character design.
+    5. For 'Product' style: Focus on studio lighting, flatlay composition, and luxury look.
+    """
+
+    try:
+        completion = client.chat.completions.create(
+            model=MODEL_ID,
+            messages=[
+                {"role": "system", "content": system_instruction},
+                {"role": "user", "content": f"Create a {style} prompt for this concept: {user_idea}"}
+            ],
+            temperature=0.7,
+            max_tokens=300,
+            top_p=1,
+            stream=False,
+            stop=None,
+        )
+        return completion.choices[0].message.content
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+# --- TAMPILAN WEBSITE (UI) ---
+
+st.title("⚡ Llama 4 Scout Prompt Generator")
+st.caption(f"Powered by Groq Model: {MODEL_ID}")
+
+# Pilihan Mode
+mode = st.radio("Select Mode:", ["Consistent Avatar", "Product Photography (Flatlay)"])
+
+# Input User
+with st.form("prompt_form"):
+    if mode == "Consistent Avatar":
+        user_input = st.text_input("Describe your character:", placeholder="e.g., A cute cyber-punk girl with pink hair...")
+        style_type = "consistent character avatar"
+    else:
+        user_input = st.text_input("Describe your product:", placeholder="e.g., A white t-shirt on a marble table...")
+        style_type = "professional product photography flatlay"
+
+    submitted = st.form_submit_button("✨ Generate Magic Prompt")
+
+# Hasil Output
+if submitted and user_input:
+    with st.spinner("Llama 4 Scout is thinking..."):
+        result = get_llama_enhancement(user_input, style_type)
+        
+        st.success("Prompt Generated!")
+        st.code(result, language="text") # Tombol copy otomatis ada di sini
+        st.caption("Copy the prompt above and paste it into Midjourney/Flux/Leonardo AI.")
